@@ -1,4 +1,4 @@
-
+MEHDI
 
 library(httr)
 library(dplyr)
@@ -19,3 +19,68 @@ con <- dbConnect(
 )
 dbIsValid(con)
 
+###############################################
+BENJAMIN 4) Opgave 2.1 – Opret tabeller (DDL styres af R)
+###############################################
+
+con <- dbConnect(
+  MariaDB(),                        # Brug MariaDB-driver
+  dbname   = "bilbasen",           # Navn på database (skal eksistere eller være oprettet)
+  host     = "localhost",          # DB-serveren (lokal)
+  user     = "root",               # Brugernavn
+  password = Sys.getenv("localpw") # Password hentes fra environment-variabel localpw
+)
+# Opretter DB-forbindelse til MariaDB
+
+dbExecute(con, "SET FOREIGN_KEY_CHECKS = 0;")
+# Slår midlertidigt foreign key checks fra, så vi kan droppe tabeller i vilkårlig rækkefølge
+
+dbExecute(con, "DROP TABLE IF EXISTS CarListingHistory;")
+# Dropper CarListingHistory hvis den findes
+
+dbExecute(con, "DROP TABLE IF EXISTS Dealer;")
+# Dropper Dealer hvis den findes
+
+dbExecute(con, "DROP TABLE IF EXISTS Car;")
+# Dropper Car hvis den findes
+
+dbExecute(con, "SET FOREIGN_KEY_CHECKS = 1;")
+# Slår foreign key checks til igen
+
+dbExecute(con, "
+CREATE TABLE Car (
+  carid           INT PRIMARY KEY,
+  model_name      VARCHAR(255),
+  farve           VARCHAR(50),
+  kilometerstand  INT
+);
+")
+# Opretter Car-tabellen med carid som primærnøgle, samt model_name, farve og kilometerstand
+
+dbExecute(con, "
+CREATE TABLE Dealer (
+  carid        INT PRIMARY KEY,
+  seller_name  VARCHAR(255),
+  dealer_name  VARCHAR(255),
+  address      VARCHAR(255),
+  cvr          VARCHAR(20),
+  FOREIGN KEY (carid) REFERENCES Car(carid)
+);
+")
+# Opretter Dealer-tabellen med carid som både PK og FK til Car (én dealer-row per bil)
+
+dbExecute(con, "
+CREATE TABLE CarListingHistory (
+  historyid   INT AUTO_INCREMENT PRIMARY KEY,
+  carid       INT NOT NULL,
+  scrapedate  DATE NOT NULL,
+  price       INT,
+  price_prev  INT,
+  is_sold     TINYINT(1) NOT NULL DEFAULT 0,
+  FOREIGN KEY (carid) REFERENCES Car(carid)
+);
+")
+# Opretter CarListingHistory-tabellen til historik over pris osv.
+# price      = aktuel pris på den dato
+# price_prev = tidligere pris (kun udfyldt for rækker hvor prisen ændres)
+# is_sold    = 1 hvis bilen er solgt, ellers 0
