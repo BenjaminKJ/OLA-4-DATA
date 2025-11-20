@@ -1,4 +1,4 @@
-
+MEHDI
 
 #2.2
 
@@ -59,3 +59,74 @@ inserts_var <- apply(
 writeLines(inserts_var, "INSERT_variabel.sql")
 
 
+###############################################
+Benjamin # 5) Opgave 2.2 – Første scraping til Car, Dealer, History
+###############################################
+
+cars_df <- colldf1 %>%
+  mutate(
+    carid          = as.integer(carid),
+    # Konverter carid til integer for brug i SQL
+    
+    model_name     = makemodel,
+    # model_name = tekst fra makemodel
+    
+    kilometerstand = str_extract(details, "[0-9.]+(?= km)") %>%
+      str_remove_all("\\.") %>% as.integer(),
+    # Trækker km-tekst ud af details (fx "120.000 km"), fjerner punktummer og laver til integer
+    
+    farve          = NA_character_
+    # Farve er ikke scraped, så den sættes til NA
+  ) %>%
+  distinct(carid, .keep_all = TRUE) %>%
+  # Sikrer at der kun er én række per carid
+  
+  select(carid, model_name, farve, kilometerstand)
+# Beholder kun de kolonner der hører til Car-tabellen
+
+dealer_df <- colldf1 %>%
+  mutate(
+    carid       = as.integer(carid),
+    # carid som integer
+    
+    dealer_name = seller_name,
+    # dealer_name = seller_name (du har ikke en separat dealer-name, så du spejler den)
+    
+    address     = location,
+    # address = location fra Bilbasen
+    
+    cvr         = NA_character_
+    # cvr kender du ikke, så den er NA
+  ) %>%
+  distinct(carid, .keep_all = TRUE) %>%
+  # Én dealer-row per bil
+  
+  select(carid, seller_name, dealer_name, address, cvr)
+# Beholder kun de kolonner som findes i Dealer-tabellen
+
+hist1 <- colldf1 %>%
+  transmute(
+    carid      = as.integer(carid),
+    # carid som integer
+    
+    scrapedate = scrapedate,
+    # scrapedate som Date (fra tidligere)
+    
+    price      = as.integer(str_remove_all(price, "[^0-9]")),
+    # fjern alt undtagen tal fra pris-teksten og lav til integer
+    
+    price_prev = NA_integer_,
+    # Første gang har vi ingen tidligere pris, så price_prev er NA
+    
+    is_sold    = 0L
+    # Ved første scrape er ingen biler markeret som solgt
+  )
+
+dbWriteTable(con, "Car",               cars_df,   append = TRUE, row.names = FALSE)
+# Skriver data fra cars_df ind i Car-tabellen (tilføjer rækker)
+
+dbWriteTable(con, "Dealer",            dealer_df, append = TRUE, row.names = FALSE)
+# Skriver data fra dealer_df ind i Dealer-tabellen
+
+dbWriteTable(con, "CarListingHistory", hist1,     append = TRUE, row.names = FALSE)
+# Skriver første historik-runde ind i CarListingHistory
